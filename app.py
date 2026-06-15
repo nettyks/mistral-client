@@ -685,8 +685,8 @@ class MistralApp(ctk.CTk):
         f.grid_columnconfigure(0, weight=1)
         f.grid_rowconfigure(2, weight=1)
 
-        # ── Panneau haut : instruction + fichiers ──────────────────────
-        top = ctk.CTkFrame(f, corner_radius=10)
+        # ── Panneau haut : instruction + fichiers (repliable) ──────────
+        self.work_ctx = top = ctk.CTkFrame(f, corner_radius=10)
         top.grid(row=0, column=0, sticky="ew", padx=16, pady=(12,6))
         top.grid_columnconfigure(0, weight=1)
 
@@ -733,6 +733,17 @@ class MistralApp(ctk.CTk):
         ctk.CTkOptionMenu(mbar, values=MODELS, variable=self.work_model_var,
                           width=210, height=30, font=ctk.CTkFont(size=12),
         ).grid(row=0, column=1, sticky="w")
+        mbar.grid_columnconfigure(2, weight=1)
+        self.work_ctx_btn = ctk.CTkButton(mbar, text="📎 Contexte", width=110, height=30,
+            corner_radius=8, fg_color=("#e8e6dc","#2a2926"),
+            hover_color=("#dcd8cc","#3a3833"), text_color=("#3d3d3a","#e9e7df"),
+            command=self._toggle_work_ctx)
+        self.work_ctx_btn.grid(row=0, column=3, padx=(0,6))
+        self.work_ssh_btn = ctk.CTkButton(mbar, text="🔌 SSH", width=80, height=30,
+            corner_radius=8, fg_color=("#e8e6dc","#2a2926"),
+            hover_color=("#dcd8cc","#3a3833"), text_color=("#3d3d3a","#e9e7df"),
+            command=self._toggle_work_ssh)
+        self.work_ssh_btn.grid(row=0, column=4)
 
         # Zone de chat travail
         self.work_textbox = ctk.CTkTextbox(f, wrap="word", state="disabled",
@@ -743,7 +754,7 @@ class MistralApp(ctk.CTk):
         f.grid_rowconfigure(3, weight=0)
         f.grid_rowconfigure(4, weight=0)
 
-        wssh = ctk.CTkFrame(f, corner_radius=8, fg_color=("#201f1b","#201f1b"))
+        self.work_ssh = wssh = ctk.CTkFrame(f, corner_radius=8, fg_color=("#201f1b","#201f1b"))
         wssh.grid(row=3, column=0, sticky="ew", padx=16, pady=(0,4))
         wssh.grid_columnconfigure(1, weight=1)
         wssh.grid_columnconfigure(3, weight=1)
@@ -794,7 +805,25 @@ class MistralApp(ctk.CTk):
                                            height=44, corner_radius=12,
                                            command=self._work_send)
         self.work_send_btn.grid(row=0, column=1)
+        # Vue épurée : panneaux repliés par défaut
+        self.work_ctx.grid_remove(); self._work_ctx_on = False
+        self.work_ssh.grid_remove(); self._work_ssh_on = False
         return f
+
+    def _toggle_panel(self, frame, btn, attr):
+        on = not getattr(self, attr, False)
+        setattr(self, attr, on)
+        if on:
+            frame.grid(); btn.configure(fg_color="#FA520F", text_color="#ffffff")
+        else:
+            frame.grid_remove()
+            btn.configure(fg_color=("#e8e6dc","#2a2926"), text_color=("#3d3d3a","#e9e7df"))
+
+    def _toggle_work_ctx(self):
+        self._toggle_panel(self.work_ctx, self.work_ctx_btn, "_work_ctx_on")
+
+    def _toggle_work_ssh(self):
+        self._toggle_panel(self.work_ssh, self.work_ssh_btn, "_work_ssh_on")
 
 
     def _work_ssh_pick_key(self):
@@ -1042,7 +1071,7 @@ class MistralApp(ctk.CTk):
         f.grid_rowconfigure(0, weight=1)
 
         # ── COLONNE GAUCHE : éditeur + terminal ──────────────────────
-        left = ctk.CTkFrame(f, corner_radius=0, fg_color="transparent")
+        self.code_left = left = ctk.CTkFrame(f, corner_radius=0, fg_color="transparent")
         left.grid(row=0, column=0, sticky="nsew", padx=(12,4), pady=12)
         left.grid_columnconfigure(0, weight=1)
         left.grid_rowconfigure(0, weight=3)
@@ -1080,11 +1109,13 @@ class MistralApp(ctk.CTk):
         self.code_editor.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0,12))
         self.code_editor.insert("1.0", "# Ton code apparaîtra ici\n")
 
-        ctk.CTkLabel(left, text="▼  Terminal",
-                     font=ctk.CTkFont(size=12, weight="bold"), text_color="gray",
-        ).grid(row=1, column=0, sticky="w", pady=(2,2))
+        self.term_toggle_btn = ctk.CTkButton(left, text="▸  Terminal", anchor="w",
+                     height=26, corner_radius=6, fg_color="transparent",
+                     hover_color=("#e6e3d8","#3a3833"), text_color=("#5e5d59","#b0aea5"),
+                     font=ctk.CTkFont(size=12, weight="bold"), command=self._toggle_terminal)
+        self.term_toggle_btn.grid(row=1, column=0, sticky="ew", pady=(2,2))
 
-        term_frame = ctk.CTkFrame(left, corner_radius=10, fg_color=("#1a1a18","#1a1a18"))
+        self.term_frame = term_frame = ctk.CTkFrame(left, corner_radius=10, fg_color=("#1a1a18","#1a1a18"))
         term_frame.grid(row=2, column=0, sticky="nsew")
         term_frame.grid_rowconfigure(0, weight=1)
         term_frame.grid_rowconfigure(1, weight=0)
@@ -1202,7 +1233,29 @@ class MistralApp(ctk.CTk):
 
         self.code_chat_history = []
         self._last_code_response = ""
+        # Terminal replié par défaut — l'éditeur occupe toute la hauteur
+        self.term_frame.grid_remove()
+        self.code_left.grid_rowconfigure(2, weight=0)
+        self.code_left.grid_rowconfigure(0, weight=1)
+        self._term_on = False
         return f
+
+    def _ensure_terminal_visible(self):
+        if not getattr(self, "_term_on", False):
+            self._toggle_terminal()
+
+    def _toggle_terminal(self):
+        self._term_on = not getattr(self, "_term_on", False)
+        if self._term_on:
+            self.term_frame.grid()
+            self.code_left.grid_rowconfigure(2, weight=1)
+            self.code_left.grid_rowconfigure(0, weight=3)
+            self.term_toggle_btn.configure(text="▾  Terminal", text_color=("#FA520F","#FF7000"))
+        else:
+            self.term_frame.grid_remove()
+            self.code_left.grid_rowconfigure(2, weight=0)
+            self.code_left.grid_rowconfigure(0, weight=1)
+            self.term_toggle_btn.configure(text="▸  Terminal", text_color=("#5e5d59","#b0aea5"))
 
     def _code_chat_send(self):
         msg = self.code_chat_entry.get().strip()
@@ -1321,6 +1374,7 @@ class MistralApp(ctk.CTk):
     def _code_run(self):
         code = self.code_editor.get("1.0","end").strip()
         if not code: return
+        self._ensure_terminal_visible()
         lang = "python3"
         if code.startswith("//") or "console.log" in code: lang = "node"
         if code.startswith("#!"): lang = ""
@@ -1377,6 +1431,7 @@ class MistralApp(ctk.CTk):
 
     def _code_install_deps(self):
         """Analyse le code de l'éditeur et installe tous les packages externes."""
+        self._ensure_terminal_visible()
         import re, subprocess as sp
         code = self.code_editor.get("1.0", "end")
         # Extraire les imports Python
