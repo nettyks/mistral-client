@@ -1324,7 +1324,7 @@ class MistralApp(ctk.CTk):
             self._last_code_response = full
             self._autosave_code()
             if "```" in full:
-                self.after(0, self._mark_inject_ready)
+                self.after(0, self._code_inject_last)  # injection auto dans l'éditeur
         except Exception as e:
             append(f"\n⚠️  {e}\n\n")
         finally:
