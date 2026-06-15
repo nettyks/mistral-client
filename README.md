@@ -17,7 +17,8 @@ Thème **orange Mistral** sur base éditoriale claire (parchemin/ivoire), titres
 - **SSH intégré** — connexion SSH depuis les onglets Chat et Travail, support des clés chiffrées (passphrase), sélection de clé via explorateur de fichiers
 - **SSH auto** — tape `connecte-toi en SSH à user@host` dans le chat et la connexion se fait automatiquement
 - **Onglet Travail** — instruction globale, ajout de fichiers/dossiers en contexte, sélection du modèle
-- **Onglet Code** — éditeur + terminal SSH avec invite de commande interactive
+- **Onglet Code** — éditeur + terminal SSH avec invite de commande interactive ; l'assistant écrit le code directement dans l'éditeur (injection automatique)
+- **Projets** — chaque projet possède un fichier `instructions.md` relu automatiquement à chaque nouvelle conversation (Chat, Travail et Code) ; les conversations sont rangées par projet
 
 ## Prérequis
 
@@ -41,6 +42,16 @@ La config est stockée dans `~/.mistral-client/config.json` :
 - Clé API Mistral
 - Conversations sauvegardées dans `~/.mistral-client/conversations/`
 - Skills dans `~/.mistral-client/skills/`
+- Projets dans `~/.mistral-client/projects/<nom>/` (un `instructions.md` + un dossier `conversations/` par projet)
+
+## Projets
+
+Un projet regroupe un contexte d'instructions et ses propres conversations, comme les Projets de Claude.
+
+- Sélecteur **Projet** dans la barre latérale (« Général » par défaut, ou « ＋ Nouveau projet… »).
+- À la création, tu donnes un nom et des **instructions** : elles sont enregistrées dans `instructions.md` et **relues au début de chaque conversation** du projet (Chat, Travail, Code).
+- Le bouton **✏️** permet de modifier les instructions, **renommer** ou **supprimer** le projet.
+- Les conversations d'un projet sont isolées : la barre latérale n'affiche que celles du projet actif.
 
 ## Modèles supportés
 

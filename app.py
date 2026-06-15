@@ -649,21 +649,49 @@ class MistralApp(ctk.CTk):
     def _edit_project_instructions(self):
         if not getattr(self, "active_project", None):
             self._create_project_dialog(); return
-        win = ctk.CTkToplevel(self); win.title(f"Instructions — {self.active_project}")
-        win.geometry("540x480"); win.grab_set()
-        win.grid_columnconfigure(0, weight=1); win.grid_rowconfigure(1, weight=1)
-        ctk.CTkLabel(win, text=f"Instructions du projet « {self.active_project} »",
-                     font=ctk.CTkFont(family="Georgia", size=16, weight="bold"),
-        ).grid(row=0, column=0, padx=20, pady=(18,6), sticky="w")
+        win = ctk.CTkToplevel(self); win.title(f"Projet — {self.active_project}")
+        win.geometry("540x540"); win.grab_set()
+        win.grid_columnconfigure(0, weight=1); win.grid_rowconfigure(3, weight=1)
+        ctk.CTkLabel(win, text="Nom du projet :", font=ctk.CTkFont(size=12),
+        ).grid(row=0, column=0, padx=20, pady=(18,4), sticky="w")
+        e_name = ctk.CTkEntry(win, width=320); e_name.insert(0, self.active_project)
+        e_name.grid(row=1, column=0, padx=20, pady=(0,10), sticky="w")
+        ctk.CTkLabel(win, text="Instructions (relues à chaque conversation du projet) :",
+                     font=ctk.CTkFont(size=12),
+        ).grid(row=2, column=0, padx=20, pady=(0,4), sticky="w")
         box = ctk.CTkTextbox(win, font=ctk.CTkFont(size=12))
-        box.grid(row=1, column=0, padx=20, pady=(0,10), sticky="nsew")
+        box.grid(row=3, column=0, padx=20, pady=(0,10), sticky="nsew")
         box.insert("1.0", self._project_instructions())
+        btns = ctk.CTkFrame(win, fg_color="transparent")
+        btns.grid(row=4, column=0, padx=20, pady=(0,18), sticky="ew")
         def save():
-            f = PROJECTS_DIR / self.active_project / "instructions.md"
-            f.parent.mkdir(parents=True, exist_ok=True)
-            f.write_text(box.get("1.0","end").strip(), encoding="utf-8"); win.destroy()
-        ctk.CTkButton(win, text="Enregistrer", command=save,
-        ).grid(row=2, column=0, padx=20, pady=(0,18), sticky="w")
+            old = self.active_project
+            new = e_name.get().strip().replace("/", "-") or old
+            base = PROJECTS_DIR / old
+            if new != old and not (PROJECTS_DIR / new).exists():
+                base.rename(PROJECTS_DIR / new); self.active_project = new
+            base = PROJECTS_DIR / self.active_project
+            base.mkdir(parents=True, exist_ok=True)
+            (base / "instructions.md").write_text(box.get("1.0","end").strip(), encoding="utf-8")
+            self.project_menu.configure(values=self._project_choices())
+            self.project_var.set(self.active_project)
+            self._refresh_conv_list(); win.destroy()
+        def delete():
+            import shutil, tkinter.messagebox as mb
+            if not mb.askyesno("Supprimer le projet",
+                    f"Supprimer définitivement « {self.active_project} » et toutes ses conversations ?",
+                    parent=win):
+                return
+            shutil.rmtree(PROJECTS_DIR / self.active_project, ignore_errors=True)
+            self.active_project = None
+            self.project_menu.configure(values=self._project_choices())
+            self.project_var.set("Général")
+            self._new_chat(); self._refresh_conv_list(); win.destroy()
+        ctk.CTkButton(btns, text="Enregistrer", command=save,
+        ).grid(row=0, column=0, padx=(0,8))
+        ctk.CTkButton(btns, text="🗑 Supprimer", command=delete,
+            fg_color="#b53333", hover_color="#9a2b2b",
+        ).grid(row=0, column=1)
 
     def _new_chat(self):
         self.chat_history = []; self.chat_file = None
