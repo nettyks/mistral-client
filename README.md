@@ -2,6 +2,14 @@
 
 Interface desktop Python pour interagir avec l'API Mistral AI. Application multi-onglets avec chat IA, gestion de fichiers, terminal SSH intégré et bibliothèque de skills personnalisables.
 
+Thème **orange Mistral** sur base éditoriale claire (parchemin/ivoire), titres serif, éditeur et terminal en mode sombre.
+
+## Aperçu
+
+| Chat | Code |
+|------|------|
+| ![Onglet Chat](docs/screenshot_chat.png) | ![Onglet Code](docs/screenshot_code.png) |
+
 ## Fonctionnalités
 
 - **Chat IA** — conversations avec les modèles Mistral, historique sauvegardé, détection automatique des skills JSON générés par l'IA
@@ -9,7 +17,7 @@ Interface desktop Python pour interagir avec l'API Mistral AI. Application multi
 - **SSH intégré** — connexion SSH depuis les onglets Chat et Travail, support des clés chiffrées (passphrase), sélection de clé via explorateur de fichiers
 - **SSH auto** — tape `connecte-toi en SSH à user@host` dans le chat et la connexion se fait automatiquement
 - **Onglet Travail** — instruction globale, ajout de fichiers/dossiers en contexte, sélection du modèle
-- **Onglet Code** — terminal SSH avec invite de commande interactive
+- **Onglet Code** — éditeur + terminal SSH avec invite de commande interactive
 
 ## Prérequis
 
@@ -22,6 +30,8 @@ pip install customtkinter mistralai paramiko
 ```bash
 python app.py
 ```
+
+> Garde le fichier `lueurs_theme.json` à côté de `app.py` : il définit le thème de l'interface. Sans lui, l'app revient au thème par défaut.
 
 Au premier lancement, entre ta clé API Mistral dans les paramètres (⚙️).
 

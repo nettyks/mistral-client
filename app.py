@@ -10,8 +10,9 @@ from tkinter import filedialog
 import customtkinter as ctk
 from mistralai.client import Mistral
 
-ctk.set_appearance_mode("dark")
-ctk.set_default_color_theme("blue")
+ctk.set_appearance_mode("light")
+_THEME_FILE = Path(__file__).with_name("lueurs_theme.json")
+ctk.set_default_color_theme(str(_THEME_FILE) if _THEME_FILE.exists() else "blue")
 
 CONFIG_FILE = Path.home() / ".mistral-client" / "config.json"
 CONV_DIR    = Path.home() / ".mistral-client" / "conversations"
@@ -117,7 +118,7 @@ class UsageBar(ctk.CTkFrame):
     def update(self, used, limit):
         if not limit:
             self.lbl.configure(text=f"{fmt(used)} / ∞")
-            self.bar.set(0); self.bar.configure(progress_color="#555")
+            self.bar.set(0); self.bar.configure(progress_color="#cfccbe")
         else:
             pct = min(used/limit, 1.0)
             self.lbl.configure(text=f"{fmt(used)} / {fmt(limit)}")
@@ -190,8 +191,9 @@ class MistralApp(ctk.CTk):
         sb.grid_rowconfigure(3, weight=1)
         sb.grid_columnconfigure(0, weight=1)
 
-        ctk.CTkLabel(sb, text="✦ Mistral",
-                     font=ctk.CTkFont(size=20, weight="bold")
+        ctk.CTkLabel(sb, text="🔥 Mistral",
+                     font=ctk.CTkFont(family="Georgia", size=24, weight="bold"),
+                     text_color=("#1f1e1d", "#e9e7df"),
         ).grid(row=0, column=0, padx=16, pady=(18,6), sticky="w")
 
         ctk.CTkButton(sb, text="＋  Nouveau chat", height=34,
@@ -200,8 +202,9 @@ class MistralApp(ctk.CTk):
 
         ctk.CTkButton(sb, text="⚡  Skills", height=30,
                       corner_radius=8,
-                      fg_color=("#1e3a5f","#1e3a5f"),
-                      hover_color=("#1a4a7a","#1a4a7a"),
+                      fg_color=("#e8e6dc","#2a2926"),
+                      hover_color=("#dcd8cc","#3a3833"),
+                      text_color=("#3d3d3a","#e9e7df"),
                       command=lambda: self._switch_tab("skills"),
         ).grid(row=2, column=0, padx=10, pady=(0,8), sticky="ew")
 
@@ -222,13 +225,14 @@ class MistralApp(ctk.CTk):
         self.skill_indicator.grid(row=5, column=0, padx=12, pady=(4,2), sticky="w")
 
         ctk.CTkButton(sb, text="⚙️  Paramètres", anchor="w", height=32,
-                      fg_color="transparent", hover_color=("#2b2b2b","#333"),
+                      fg_color="transparent", hover_color=("#e6e3d8","#3a3833"),
+                      text_color=("#3d3d3a","#e9e7df"),
                       command=lambda: self._switch_tab("settings"),
         ).grid(row=6, column=0, padx=10, pady=(0,12), sticky="ew")
 
     def _build_tabbar(self):
         bar = ctk.CTkFrame(self.main, height=44, corner_radius=0,
-                           fg_color=("#1a1a1a","#1a1a1a"))
+                           fg_color=("#efece2","#201f1b"))
         bar.grid(row=0, column=0, sticky="ew")
         bar.grid_columnconfigure((0,1,2,3), weight=1)
 
@@ -236,8 +240,9 @@ class MistralApp(ctk.CTk):
         tabs = [("chat","💬  Chat"), ("travail","🗂  Travail"), ("code","⌨️  Code")]
         for col, (key, label) in enumerate(tabs):
             btn = ctk.CTkButton(
-                bar, text=label, height=44, corner_radius=0,
-                fg_color="transparent", hover_color=("#2a2a2a","#2a2a2a"),
+                bar, text=label, height=44, corner_radius=8,
+                fg_color="transparent", hover_color=("#e6e3d8","#3a3833"),
+                text_color=("#5e5d59","#b0aea5"),
                 font=ctk.CTkFont(size=13),
                 command=lambda k=key: self._switch_tab(k),
             )
@@ -252,7 +257,12 @@ class MistralApp(ctk.CTk):
                 except: pass
         # Surbrillance bouton actif
         for k, b in self._tab_btns.items():
-            b.configure(fg_color=("#2563eb","#1d4ed8") if k==key else "transparent")
+            if k == key:
+                b.configure(fg_color=("#faf9f5","#2a2926"),
+                            text_color=("#FA520F","#FF7000"))
+            else:
+                b.configure(fg_color="transparent",
+                            text_color=("#5e5d59","#b0aea5"))
         # Afficher l'onglet
         frame = {"chat": self.tab_chat, "travail": self.tab_travail,
                  "code": self.tab_code, "settings": self.tab_settings,
@@ -291,23 +301,24 @@ class MistralApp(ctk.CTk):
 
         # ── Barre détection skill (cachée par défaut) ──────────────────
         self._skill_detect_bar = ctk.CTkFrame(f, corner_radius=10,
-            fg_color=("#0f2d0f","#0f2d0f"), border_width=1, border_color="#15803d")
+            fg_color=("#f3ece2","#2a2926"), border_width=1, border_color="#FA520F")
         self._skill_detect_bar.grid_columnconfigure(1, weight=1)
         self._skill_detect_lbl = ctk.CTkLabel(self._skill_detect_bar,
             text="🎯 Skill détecté :", font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#4ade80")
+            text_color="#FA520F")
         self._skill_detect_lbl.grid(row=0, column=0, padx=(12,6), pady=8)
         self._skill_detect_name = ctk.CTkLabel(self._skill_detect_bar,
-            text="", font=ctk.CTkFont(size=12), text_color="#86efac")
+            text="", font=ctk.CTkFont(size=12), text_color="#C23D07")
         self._skill_detect_name.grid(row=0, column=1, padx=(0,8), pady=8, sticky="w")
         ctk.CTkButton(self._skill_detect_bar, text="➕ Ajouter à la bibliothèque",
             width=190, height=28, corner_radius=6,
-            fg_color="#15803d", hover_color="#166534",
+            fg_color="#FA520F", hover_color="#E14708",
             font=ctk.CTkFont(size=11),
             command=self._import_detected_skill,
         ).grid(row=0, column=2, padx=(0,4), pady=8)
         ctk.CTkButton(self._skill_detect_bar, text="✕", width=28, height=28,
             corner_radius=6, fg_color="transparent", border_width=1,
+            text_color=("#5e5d59","#b0aea5"), border_color=("#e0ddd0","#3a3833"),
             font=ctk.CTkFont(size=11),
             command=self._hide_skill_detect_bar,
         ).grid(row=0, column=3, padx=(0,8), pady=8)
@@ -352,7 +363,7 @@ class MistralApp(ctk.CTk):
                 f"🔌 Connexion SSH vers {_parsed['user']}@{_parsed['host']}:{_parsed.get('port',22)}...\n\n"
             )
             self.after(100, lambda p=_parsed: self._auto_ssh_connect(p))
-            self.chat_send_btn.configure(state="normal", text="Envoyer")
+            self._ui(lambda: self.chat_send_btn.configure(state="normal", text="Envoyer"))
             return
         self._cancel_stream.clear()
         current_textbox = self.chat_textbox
@@ -365,10 +376,12 @@ class MistralApp(ctk.CTk):
     def _chat_stream(self, messages, textbox, history):
         model = self.active_skill["model"] if self.active_skill else self.chat_model_var.get()
         def append(t):
-            textbox.configure(state="normal")
-            textbox.insert("end", t)
-            textbox.see("end")
-            textbox.configure(state="disabled")
+            def _do():
+                textbox.configure(state="normal")
+                textbox.insert("end", t)
+                textbox.see("end")
+                textbox.configure(state="disabled")
+            self._ui(_do)
         try:
             stream = self.client.chat.stream(model=model, messages=messages)
             append("Mistral : ")
@@ -390,7 +403,7 @@ class MistralApp(ctk.CTk):
             if not self._cancel_stream.is_set():
                 append(f"\n⚠️  {e}\n\n")
         finally:
-            self.chat_send_btn.configure(state="normal", text="Envoyer")
+            self._ui(lambda: self.chat_send_btn.configure(state="normal", text="Envoyer"))
 
 
     def _check_skill_in_response(self, text: str):
@@ -541,10 +554,12 @@ class MistralApp(ctk.CTk):
         self._chat_append(f"✅ Skill «{skill['name']}» ajouté à la bibliothèque !\n\n")
 
     def _chat_append(self, t):
-        self.chat_textbox.configure(state="normal")
-        self.chat_textbox.insert("end", t)
-        self.chat_textbox.see("end")
-        self.chat_textbox.configure(state="disabled")
+        def _do():
+            self.chat_textbox.configure(state="normal")
+            self.chat_textbox.insert("end", t)
+            self.chat_textbox.see("end")
+            self.chat_textbox.configure(state="disabled")
+        self._ui(_do)
 
     def _new_chat(self):
         self.chat_history = []; self.chat_file = None
@@ -601,8 +616,9 @@ class MistralApp(ctk.CTk):
             btn = ctk.CTkButton(
                 self.conv_scroll, text=("● " if is_cur else "") + title,
                 anchor="w", height=30, corner_radius=6,
-                fg_color=("#1a5f9e","#1a4a7a") if is_cur else "transparent",
-                hover_color=("#2b2b2b","#333"), font=ctk.CTkFont(size=12),
+                fg_color=("#ece2d5","#2a2926") if is_cur else "transparent",
+                text_color=("#FA520F","#FF7000") if is_cur else ("#5e5d59","#b0aea5"),
+                hover_color=("#e6e3d8","#3a3833"), font=ctk.CTkFont(size=12),
                 command=lambda p=path: self._load_chat_conv(p),
             )
             btn.grid(sticky="ew", pady=1); self._conv_buttons.append(btn)
@@ -652,7 +668,7 @@ class MistralApp(ctk.CTk):
                 self.code_inject_btn.configure(
                     state="normal",
                     text="⬅  Injecter dans l'éditeur",
-                    fg_color="#7c3aed",
+                    fg_color="#FA520F",
                 )
             else:
                 self.code_inject_btn.configure(state="disabled")
@@ -699,6 +715,7 @@ class MistralApp(ctk.CTk):
         ).grid(row=0, column=1, padx=(0,6))
         ctk.CTkButton(file_bar, text="✕ Tout retirer", width=110, height=30,
                       corner_radius=8, fg_color="transparent", border_width=1,
+                      text_color=("#3d3d3a","#e9e7df"), border_color=("#e0ddd0","#3a3833"),
                       command=self._work_clear_files,
         ).grid(row=0, column=2)
 
@@ -726,39 +743,40 @@ class MistralApp(ctk.CTk):
         f.grid_rowconfigure(3, weight=0)
         f.grid_rowconfigure(4, weight=0)
 
-        wssh = ctk.CTkFrame(f, corner_radius=8, fg_color=("#1a1a2e","#1a1a2e"))
+        wssh = ctk.CTkFrame(f, corner_radius=8, fg_color=("#201f1b","#201f1b"))
         wssh.grid(row=3, column=0, sticky="ew", padx=16, pady=(0,4))
         wssh.grid_columnconfigure(1, weight=1)
         wssh.grid_columnconfigure(3, weight=1)
 
         ctk.CTkLabel(wssh, text="🔌 SSH", font=ctk.CTkFont(size=12, weight="bold"),
-                     text_color="#60a5fa").grid(row=0, column=0, padx=(10,6), pady=6)
+                     text_color="#FA520F").grid(row=0, column=0, padx=(10,6), pady=6)
         self.work_ssh_host = ctk.CTkEntry(wssh, width=130, height=26,
             font=ctk.CTkFont(family="Menlo", size=11),
-            fg_color=("#111","#111"), border_width=1, placeholder_text="host / IP")
+            fg_color=("#2a2926","#2a2926"), text_color="#e9e7df", border_width=1, placeholder_text="host / IP")
         self.work_ssh_host.grid(row=0, column=1, padx=(0,2), pady=6, sticky="ew")
         ctk.CTkLabel(wssh, text=":", font=ctk.CTkFont(size=12)).grid(row=0, column=2)
         self.work_ssh_port = ctk.CTkEntry(wssh, width=44, height=26,
             font=ctk.CTkFont(family="Menlo", size=11),
-            fg_color=("#111","#111"), border_width=1)
+            fg_color=("#2a2926","#2a2926"), text_color="#e9e7df", border_width=1)
         self.work_ssh_port.insert(0, "22")
         self.work_ssh_port.grid(row=0, column=3, padx=(2,6), pady=6)
         self.work_ssh_user = ctk.CTkEntry(wssh, width=90, height=26,
             font=ctk.CTkFont(family="Menlo", size=11),
-            fg_color=("#111","#111"), border_width=1, placeholder_text="user")
+            fg_color=("#2a2926","#2a2926"), text_color="#e9e7df", border_width=1, placeholder_text="user")
         self.work_ssh_user.grid(row=0, column=4, padx=(0,4), pady=6)
         self.work_ssh_pass = ctk.CTkEntry(wssh, width=100, height=26,
             font=ctk.CTkFont(family="Menlo", size=11),
-            fg_color=("#111","#111"), border_width=1,
+            fg_color=("#2a2926","#2a2926"), text_color="#e9e7df", border_width=1,
             placeholder_text="mot de passe", show="*")
         self.work_ssh_pass.grid(row=0, column=5, padx=(0,4), pady=6)
         self.work_ssh_key_btn = ctk.CTkButton(wssh, text="🔑 Clé", width=60, height=26,
             corner_radius=6, fg_color="transparent", border_width=1,
+            text_color="#e9e7df", border_color="#3a3833",
             font=ctk.CTkFont(size=11), command=self._work_ssh_pick_key)
         self.work_ssh_key_btn.grid(row=0, column=6, padx=(0,4), pady=6)
         self._work_ssh_key_path = None
         self.work_ssh_connect_btn = ctk.CTkButton(wssh, text="Connecter", width=85, height=26,
-            corner_radius=6, fg_color="#0369a1", hover_color="#0284c7",
+            corner_radius=6, fg_color="#FA520F", hover_color="#FF7000",
             font=ctk.CTkFont(size=11), command=self._work_ssh_toggle)
         self.work_ssh_connect_btn.grid(row=0, column=7, padx=(0,4), pady=6)
         self.work_ssh_status = ctk.CTkLabel(wssh, text="⚫", font=ctk.CTkFont(size=13))
@@ -788,7 +806,7 @@ class MistralApp(ctk.CTk):
         if path:
             self._work_ssh_key_path = path
             self.work_ssh_key_btn.configure(
-                text=f"🔑 {Path(path).name[:10]}", fg_color="#15803d")
+                text=f"🔑 {Path(path).name[:10]}", fg_color="#FA520F")
         else:
             self._work_ssh_key_path = None
             self.work_ssh_key_btn.configure(text="🔑 Clé", fg_color="transparent")
@@ -869,22 +887,22 @@ class MistralApp(ctk.CTk):
         if connected:
             self.after(0, lambda: self.ssh_status_lbl.configure(text="🟢"))
             self.after(0, lambda: self.ssh_connect_btn.configure(
-                text="Déconnecter", fg_color="#dc2626", hover_color="#b91c1c"))
+                text="Déconnecter", fg_color="#b53333", hover_color="#9a2b2b"))
             lbl = self._ssh_host_str + "$"
             self.after(0, lambda: self.term_prompt_lbl.configure(
                 text=lbl, text_color="#f59e0b"))
             self.after(0, lambda: self.work_ssh_status.configure(text="🟢"))
             self.after(0, lambda: self.work_ssh_connect_btn.configure(
-                text="Déconnecter", fg_color="#dc2626", hover_color="#b91c1c"))
+                text="Déconnecter", fg_color="#b53333", hover_color="#9a2b2b"))
         else:
             self.after(0, lambda: self.ssh_status_lbl.configure(text="⚫"))
             self.after(0, lambda: self.ssh_connect_btn.configure(
-                text="Connecter", fg_color="#0369a1", hover_color="#0284c7"))
+                text="Connecter", fg_color="#FA520F", hover_color="#FF7000"))
             self.after(0, lambda: self.term_prompt_lbl.configure(
                 text="$", text_color="#4ade80"))
             self.after(0, lambda: self.work_ssh_status.configure(text="⚫"))
             self.after(0, lambda: self.work_ssh_connect_btn.configure(
-                text="Connecter", fg_color="#0369a1", hover_color="#0284c7"))
+                text="Connecter", fg_color="#FA520F", hover_color="#FF7000"))
 
     def _ssh_disconnect_all(self):
         """Déconnecte SSH et met à jour les deux onglets."""
@@ -966,7 +984,7 @@ class MistralApp(ctk.CTk):
                 f"🔌 Connexion SSH vers {_parsed['user']}@{_parsed['host']}:{_parsed.get('port',22)}...\n\n"
             )
             self.after(100, lambda p=_parsed: self._auto_ssh_connect(p))
-            self.work_send_btn.configure(state="normal", text="Envoyer")
+            self._ui(lambda: self.work_send_btn.configure(state="normal", text="Envoyer"))
             return
         self._cancel_stream.clear()
         current_work_box = self.work_textbox
@@ -979,10 +997,12 @@ class MistralApp(ctk.CTk):
     def _work_stream(self, messages, textbox, history):
         model = self.work_model_var.get()
         def append(t):
-            textbox.configure(state="normal")
-            textbox.insert("end", t)
-            textbox.see("end")
-            textbox.configure(state="disabled")
+            def _do():
+                textbox.configure(state="normal")
+                textbox.insert("end", t)
+                textbox.see("end")
+                textbox.configure(state="disabled")
+            self._ui(_do)
         try:
             stream = self.client.chat.stream(model=model, messages=messages)
             append("Mistral : ")
@@ -1000,13 +1020,15 @@ class MistralApp(ctk.CTk):
             if not self._cancel_stream.is_set():
                 append(f"\n⚠️  {e}\n\n")
         finally:
-            self.work_send_btn.configure(state="normal", text="Envoyer")
+            self._ui(lambda: self.work_send_btn.configure(state="normal", text="Envoyer"))
 
     def _work_append(self, t):
-        self.work_textbox.configure(state="normal")
-        self.work_textbox.insert("end", t)
-        self.work_textbox.see("end")
-        self.work_textbox.configure(state="disabled")
+        def _do():
+            self.work_textbox.configure(state="normal")
+            self.work_textbox.insert("end", t)
+            self.work_textbox.see("end")
+            self.work_textbox.configure(state="disabled")
+        self._ui(_do)
 
 
     # ════════════════════════════════════════════════════════════════════
@@ -1035,23 +1057,25 @@ class MistralApp(ctk.CTk):
         ed_bar.grid(row=0, column=0, sticky="ew", padx=12, pady=(8,4))
         ed_bar.grid_columnconfigure(2, weight=1)
         ctk.CTkLabel(ed_bar, text="⌨️  Éditeur",
-                     font=ctk.CTkFont(size=13, weight="bold"),
+                     font=ctk.CTkFont(family="Georgia", size=18, weight="bold"),
         ).grid(row=0, column=0, padx=(0,12))
         self.code_model_var = ctk.StringVar(value="codestral-latest")
         ctk.CTkOptionMenu(ed_bar, values=MODELS, variable=self.code_model_var,
                           width=170, height=26, font=ctk.CTkFont(size=11),
         ).grid(row=0, column=1, padx=(0,8))
         ctk.CTkButton(ed_bar, text="▶  Exécuter", height=26, width=100,
-                      corner_radius=6, fg_color="#16a34a", hover_color="#15803d",
+                      corner_radius=6, fg_color="#FA520F", hover_color="#E14708",
                       command=self._code_run,
         ).grid(row=0, column=3, padx=(0,4))
         ctk.CTkButton(ed_bar, text="⚡ Installer deps", height=26, width=130,
-                      corner_radius=6, fg_color="#0369a1", hover_color="#0284c7",
+                      corner_radius=6, fg_color=("#e8e6dc","#2a2926"),
+                      hover_color=("#dcd8cc","#3a3833"), text_color=("#3d3d3a","#e9e7df"),
                       command=self._code_install_deps,
         ).grid(row=0, column=4)
 
         self.code_editor = ctk.CTkTextbox(
             ed_frame, font=ctk.CTkFont(family="Menlo", size=13),
+            fg_color=("#1a1a18","#1a1a18"), text_color="#e9e7df",
             corner_radius=8, wrap="none")
         self.code_editor.grid(row=1, column=0, sticky="nsew", padx=12, pady=(0,12))
         self.code_editor.insert("1.0", "# Ton code apparaîtra ici\n")
@@ -1060,7 +1084,7 @@ class MistralApp(ctk.CTk):
                      font=ctk.CTkFont(size=12, weight="bold"), text_color="gray",
         ).grid(row=1, column=0, sticky="w", pady=(2,2))
 
-        term_frame = ctk.CTkFrame(left, corner_radius=10, fg_color=("#111","#111"))
+        term_frame = ctk.CTkFrame(left, corner_radius=10, fg_color=("#1a1a18","#1a1a18"))
         term_frame.grid(row=2, column=0, sticky="nsew")
         term_frame.grid_rowconfigure(0, weight=1)
         term_frame.grid_rowconfigure(1, weight=0)
@@ -1069,12 +1093,12 @@ class MistralApp(ctk.CTk):
 
         self.term_output = ctk.CTkTextbox(
             term_frame, font=ctk.CTkFont(family="Menlo", size=12),
-            fg_color=("#111","#111"), text_color="#e5e5e5",
+            fg_color=("#1a1a18","#1a1a18"), text_color="#e9e7df",
             state="disabled", corner_radius=0)
         self.term_output.grid(row=0, column=0, sticky="nsew", padx=8, pady=(8,0))
 
         # ── Barre SSH ──────────────────────────────────────────────
-        ssh_bar = ctk.CTkFrame(term_frame, fg_color=("#1a1a1a","#1a1a1a"))
+        ssh_bar = ctk.CTkFrame(term_frame, fg_color=("#201f1b","#201f1b"))
         ssh_bar.grid(row=1, column=0, sticky="ew", padx=0, pady=(1,0))
         ssh_bar.grid_columnconfigure(1, weight=1)
         ssh_bar.grid_columnconfigure(3, weight=1)
@@ -1083,32 +1107,33 @@ class MistralApp(ctk.CTk):
         ).grid(row=0, column=0, padx=(8,4), pady=4)
         self.ssh_host = ctk.CTkEntry(ssh_bar, width=130, height=26,
             font=ctk.CTkFont(family="Menlo", size=11),
-            fg_color=("#222","#222"), border_width=1,
+            fg_color=("#2a2926","#2a2926"), text_color="#e9e7df", border_width=1,
             placeholder_text="host / IP")
         self.ssh_host.grid(row=0, column=1, padx=(0,2), pady=4, sticky="ew")
         ctk.CTkLabel(ssh_bar, text=":", font=ctk.CTkFont(size=12)).grid(row=0, column=2)
         self.ssh_port = ctk.CTkEntry(ssh_bar, width=44, height=26,
             font=ctk.CTkFont(family="Menlo", size=11),
-            fg_color=("#222","#222"), border_width=1)
+            fg_color=("#2a2926","#2a2926"), text_color="#e9e7df", border_width=1)
         self.ssh_port.insert(0, "22")
         self.ssh_port.grid(row=0, column=3, padx=(2,4), pady=4)
         self.ssh_user = ctk.CTkEntry(ssh_bar, width=90, height=26,
             font=ctk.CTkFont(family="Menlo", size=11),
-            fg_color=("#222","#222"), border_width=1,
+            fg_color=("#2a2926","#2a2926"), text_color="#e9e7df", border_width=1,
             placeholder_text="user")
         self.ssh_user.grid(row=0, column=4, padx=(0,4), pady=4)
         self.ssh_pass = ctk.CTkEntry(ssh_bar, width=100, height=26,
             font=ctk.CTkFont(family="Menlo", size=11),
-            fg_color=("#222","#222"), border_width=1,
+            fg_color=("#2a2926","#2a2926"), text_color="#e9e7df", border_width=1,
             placeholder_text="mot de passe", show="*")
         self.ssh_pass.grid(row=0, column=5, padx=(0,4), pady=4)
         self.ssh_key_btn = ctk.CTkButton(ssh_bar, text="🔑 Clé", width=60, height=26,
             corner_radius=6, fg_color="transparent", border_width=1,
+            text_color="#e9e7df", border_color="#3a3833",
             font=ctk.CTkFont(size=11), command=self._ssh_pick_key)
         self.ssh_key_btn.grid(row=0, column=6, padx=(0,4), pady=4)
         self._ssh_key_path = None
         self.ssh_connect_btn = ctk.CTkButton(ssh_bar, text="Connecter", width=85, height=26,
-            corner_radius=6, fg_color="#0369a1", hover_color="#0284c7",
+            corner_radius=6, fg_color="#FA520F", hover_color="#FF7000",
             font=ctk.CTkFont(size=11), command=self._ssh_toggle)
         self.ssh_connect_btn.grid(row=0, column=7, padx=(0,4), pady=4)
         self.ssh_status_lbl = ctk.CTkLabel(ssh_bar, text="⚫", font=ctk.CTkFont(size=13))
@@ -1122,7 +1147,8 @@ class MistralApp(ctk.CTk):
             font=ctk.CTkFont(family="Menlo", size=13), text_color="#4ade80")
         self.term_prompt_lbl.grid(row=0, column=0, padx=(0,6))
         self.term_entry = ctk.CTkEntry(tib, font=ctk.CTkFont(family="Menlo", size=12),
-                                       fg_color=("#1a1a1a","#1a1a1a"), border_width=0,
+                                       fg_color=("#201f1b","#201f1b"), border_width=0,
+                                       text_color="#e9e7df", placeholder_text_color="#7d7b73",
                                        placeholder_text="commande shell…", height=32)
         self.term_entry.grid(row=0, column=1, sticky="ew")
         self.term_entry.bind("<Return>", lambda e: self._term_run_cmd())
@@ -1130,7 +1156,8 @@ class MistralApp(ctk.CTk):
                       command=self._term_run_cmd,
         ).grid(row=0, column=2, padx=(6,0))
         ctk.CTkButton(tib, text="Clear", width=60, height=32, corner_radius=6,
-                      fg_color="transparent", border_width=1, command=self._term_clear,
+                      fg_color="transparent", border_width=1,
+                      text_color="#e9e7df", border_color="#3a3833", command=self._term_clear,
         ).grid(row=0, column=3, padx=(4,0))
 
         # ── COLONNE DROITE : Chat IA ──────────────────────────────────
@@ -1143,7 +1170,7 @@ class MistralApp(ctk.CTk):
         rh.grid(row=0, column=0, sticky="ew", padx=12, pady=(10,4))
         rh.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(rh, text="✨  Assistant code",
-                     font=ctk.CTkFont(size=13, weight="bold"),
+                     font=ctk.CTkFont(family="Georgia", size=18, weight="bold"),
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkLabel(rh, text="Décris ce que tu veux créer — le code ira dans l'éditeur",
                      font=ctk.CTkFont(size=11), text_color="gray",
@@ -1155,7 +1182,7 @@ class MistralApp(ctk.CTk):
 
         self.code_inject_btn = ctk.CTkButton(
             right, text="⬅  Injecter dans l'éditeur", height=30,
-            corner_radius=8, fg_color="#7c3aed", hover_color="#6d28d9",
+            corner_radius=8, fg_color="#FA520F", hover_color="#E14708",
             state="disabled", command=self._code_inject_last,
         )
         self.code_inject_btn.grid(row=2, column=0, padx=12, pady=(0,6), sticky="ew")
@@ -1222,10 +1249,12 @@ class MistralApp(ctk.CTk):
             {"role":"assistant","content":"Compris, je suis prêt."}
         ]
         def append(t):
-            textbox.configure(state="normal")
-            textbox.insert("end", t)
-            textbox.see("end")
-            textbox.configure(state="disabled")
+            def _do():
+                textbox.configure(state="normal")
+                textbox.insert("end", t)
+                textbox.see("end")
+                textbox.configure(state="disabled")
+            self._ui(_do)
         try:
             client = Mistral(api_key=self._get_api_key())
             stream = client.chat.stream(model=model, messages=system + history)
@@ -1246,19 +1275,21 @@ class MistralApp(ctk.CTk):
         except Exception as e:
             append(f"\n⚠️  {e}\n\n")
         finally:
-            self.code_chat_send_btn.configure(state="normal", text="→")
+            self._ui(lambda: self.code_chat_send_btn.configure(state="normal", text="→"))
 
     def _code_chat_append(self, t):
-        self.code_chat_box.configure(state="normal")
-        self.code_chat_box.insert("end", t)
-        self.code_chat_box.see("end")
-        self.code_chat_box.configure(state="disabled")
+        def _do():
+            self.code_chat_box.configure(state="normal")
+            self.code_chat_box.insert("end", t)
+            self.code_chat_box.see("end")
+            self.code_chat_box.configure(state="disabled")
+        self._ui(_do)
 
     def _mark_inject_ready(self):
         self.code_inject_btn.configure(
             state="normal",
             text="⬅  Nouveau code prêt — cliquer pour injecter",
-            fg_color="#7c3aed",
+            fg_color="#FA520F",
         )
 
     def _code_inject_last(self):
@@ -1283,7 +1314,7 @@ class MistralApp(ctk.CTk):
         self._term_print(f"✅ Code injecté ({len(best.splitlines())} lignes).\n")
         self.code_inject_btn.configure(
             text="⬅  Injecter dans l'éditeur",
-            fg_color="#7c3aed",
+            fg_color="#FA520F",
             state="normal",   # reste actif pour ré-injecter si besoin
         )
 
@@ -1415,7 +1446,7 @@ class MistralApp(ctk.CTk):
         if path:
             self._ssh_key_path = path
             name = Path(path).name
-            self.ssh_key_btn.configure(text=f"🔑 {name[:10]}", fg_color="#15803d")
+            self.ssh_key_btn.configure(text=f"🔑 {name[:10]}", fg_color="#FA520F")
         else:
             self._ssh_key_path = None
             self.ssh_key_btn.configure(text="🔑 Clé", fg_color="transparent")
@@ -1548,11 +1579,20 @@ class MistralApp(ctk.CTk):
         except Exception as e:
             self._term_print(f"[Erreur : {e}]\n")
 
+    def _ui(self, fn):
+        """Exécute fn sur le thread principal Tk (sûr depuis un thread)."""
+        try:
+            self.after(0, fn)
+        except Exception:
+            pass
+
     def _term_print(self, text):
-        self.term_output.configure(state="normal")
-        self.term_output.insert("end", text)
-        self.term_output.see("end")
-        self.term_output.configure(state="disabled")
+        def _do():
+            self.term_output.configure(state="normal")
+            self.term_output.insert("end", text)
+            self.term_output.see("end")
+            self.term_output.configure(state="disabled")
+        self._ui(_do)
 
     def _term_clear(self):
         self.term_output.configure(state="normal")
@@ -1572,7 +1612,7 @@ class MistralApp(ctk.CTk):
         hdr.grid(row=0, column=0, columnspan=2, sticky="ew", padx=20, pady=(16,8))
         hdr.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(hdr, text="⚡  Skills",
-                     font=ctk.CTkFont(size=18, weight="bold"),
+                     font=ctk.CTkFont(family="Georgia", size=22, weight="bold"),
         ).grid(row=0, column=0, sticky="w")
         ctk.CTkButton(hdr, text="＋  Créer un skill", width=140, height=32,
                       corner_radius=8, command=self._skill_create_dialog,
@@ -1593,7 +1633,7 @@ class MistralApp(ctk.CTk):
     def _make_skill_card(self, parent, skill, row, col):
         is_active = (self.active_skill and self.active_skill.get("id") == skill.get("id"))
         card = ctk.CTkFrame(parent, corner_radius=12, border_width=2,
-                            border_color="#2563eb" if is_active else "#333")
+                            border_color="#FA520F" if is_active else "#e4e1d6")
         card.grid(row=row, column=col, padx=8, pady=6, sticky="ew")
         card.grid_columnconfigure(0, weight=1)
         top = ctk.CTkFrame(card, fg_color="transparent")
@@ -1608,14 +1648,14 @@ class MistralApp(ctk.CTk):
                      font=ctk.CTkFont(size=11), text_color="gray", anchor="w",
         ).grid(row=1, column=0, padx=14, pady=(0,4), sticky="w")
         preview = skill.get("system","")[:80] + ("…" if len(skill.get("system","")) > 80 else "")
-        ctk.CTkLabel(card, text=preview, font=ctk.CTkFont(size=11), text_color="#aaa",
+        ctk.CTkLabel(card, text=preview, font=ctk.CTkFont(size=11), text_color="#87867f",
                      wraplength=260, justify="left", anchor="w",
         ).grid(row=2, column=0, padx=14, pady=(0,10), sticky="w")
         btns = ctk.CTkFrame(card, fg_color="transparent")
         btns.grid(row=3, column=0, sticky="ew", padx=12, pady=(0,10))
         if is_active:
             ctk.CTkButton(btns, text="✓ Actif", width=80, height=28, corner_radius=6,
-                          fg_color="#166534", hover_color="#14532d",
+                          fg_color="#C23D07", hover_color="#9a3206",
                           command=lambda: self._skill_deactivate(),
             ).grid(row=0, column=0, padx=(0,6))
         else:
@@ -1624,10 +1664,12 @@ class MistralApp(ctk.CTk):
             ).grid(row=0, column=0, padx=(0,6))
         ctk.CTkButton(btns, text="✏️", width=36, height=28, corner_radius=6,
                       fg_color="transparent", border_width=1,
+                      text_color=("#5e5d59","#b0aea5"), border_color=("#e0ddd0","#3a3833"),
                       command=lambda s=skill: self._skill_edit_dialog(s),
         ).grid(row=0, column=1, padx=(0,4))
         ctk.CTkButton(btns, text="🗑", width=36, height=28, corner_radius=6,
                       fg_color="transparent", border_width=1,
+                      text_color=("#5e5d59","#b0aea5"), border_color=("#e0ddd0","#3a3833"),
                       command=lambda s=skill: self._skill_delete(s),
         ).grid(row=0, column=2)
 
@@ -1635,7 +1677,7 @@ class MistralApp(ctk.CTk):
         self.active_skill = skill
         self.chat_model_var.set(skill.get("model", MODELS[0]))
         self.skill_indicator.configure(
-            text=f"{skill.get('icon','')} {skill['name']} actif", text_color="#60a5fa")
+            text=f"{skill.get('icon','')} {skill['name']} actif", text_color="#FA520F")
         self._refresh_skills_grid()
         self._new_chat()
         self._chat_append(f"— Skill «{skill['name']}» activé. Prêt ! —\n\n")
@@ -1693,7 +1735,7 @@ class MistralApp(ctk.CTk):
         f.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(f, text="Paramètres",
-                     font=ctk.CTkFont(size=18, weight="bold"),
+                     font=ctk.CTkFont(family="Georgia", size=22, weight="bold"),
         ).grid(row=0, column=0, padx=24, pady=(24,10), sticky="w")
 
         ctk.CTkLabel(f, text="Clé API Mistral :").grid(row=1, column=0, padx=24, sticky="w")
@@ -1751,6 +1793,7 @@ class MistralApp(ctk.CTk):
         ctk.CTkButton(f, text="↺  Réinitialiser ce modèle",
                       width=220, height=30, corner_radius=8,
                       fg_color="transparent", border_width=1,
+                      text_color=("#3d3d3a","#e9e7df"), border_color=("#e0ddd0","#3a3833"),
                       command=self._reset_usage,
         ).grid(row=7, column=0, padx=24, pady=(8,24), sticky="w")
         return f
