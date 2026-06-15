@@ -17,6 +17,7 @@ ctk.set_default_color_theme(str(_THEME_FILE) if _THEME_FILE.exists() else "blue"
 CONFIG_FILE = Path.home() / ".mistral-client" / "config.json"
 CONV_DIR    = Path.home() / ".mistral-client" / "conversations"
 SKILLS_DIR  = Path.home() / ".mistral-client" / "skills"
+PROJECTS_DIR = Path.home() / ".mistral-client" / "projects"
 
 DEFAULT_SKILLS = [
     {"id":"assistant",  "icon":"🤖", "name":"Assistant",    "model":"mistral-large-latest",  "system":"Tu es un assistant intelligent et concis. Réponds en français."},
@@ -50,6 +51,9 @@ def list_conversations():
     CONV_DIR.mkdir(parents=True, exist_ok=True)
     return sorted(CONV_DIR.glob("*.json"), reverse=True)
 def load_conv(p): return json.loads(p.read_text())
+def list_projects():
+    PROJECTS_DIR.mkdir(parents=True, exist_ok=True)
+    return sorted([p.name for p in PROJECTS_DIR.iterdir() if p.is_dir()])
 def load_skills() -> list:
     SKILLS_DIR.mkdir(parents=True, exist_ok=True)
     skills = []
@@ -149,6 +153,7 @@ class MistralApp(ctk.CTk):
         self.work_file    = None
         self.code_file    = None
         self.active_skill = None   # skill actif
+        self.active_project = None  # projet actif (None = Général)
         self._cancel_stream = threading.Event()  # annuler stream en cours
         self._ssh_client    = None
         self._ssh_channel   = None
@@ -188,7 +193,7 @@ class MistralApp(ctk.CTk):
         sb = ctk.CTkFrame(self, width=210, corner_radius=0)
         sb.grid(row=0, column=0, sticky="nsew")
         sb.grid_propagate(False)
-        sb.grid_rowconfigure(3, weight=1)
+        sb.grid_rowconfigure(6, weight=1)
         sb.grid_columnconfigure(0, weight=1)
 
         ctk.CTkLabel(sb, text="🔥 Mistral",
@@ -208,27 +213,44 @@ class MistralApp(ctk.CTk):
                       command=lambda: self._switch_tab("skills"),
         ).grid(row=2, column=0, padx=10, pady=(0,8), sticky="ew")
 
+        # ── Projet ────────────────────────────────────────────────
+        proj_hdr = ctk.CTkFrame(sb, fg_color="transparent")
+        proj_hdr.grid(row=3, column=0, padx=14, pady=(2,2), sticky="ew")
+        proj_hdr.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(proj_hdr, text="Projet", font=ctk.CTkFont(size=11),
+                     text_color="gray").grid(row=0, column=0, sticky="w")
+        ctk.CTkButton(proj_hdr, text="✏️", width=28, height=22, corner_radius=6,
+                      fg_color="transparent", border_width=1,
+                      text_color=("#5e5d59","#b0aea5"), border_color=("#e0ddd0","#3a3833"),
+                      command=self._edit_project_instructions,
+        ).grid(row=0, column=1)
+        self.project_var = ctk.StringVar(value="Général")
+        self.project_menu = ctk.CTkOptionMenu(sb, variable=self.project_var,
+                      values=self._project_choices(), height=30,
+                      font=ctk.CTkFont(size=12), command=self._on_project_change)
+        self.project_menu.grid(row=4, column=0, padx=10, pady=(0,8), sticky="ew")
+
         ctk.CTkLabel(sb, text="Conversations",
                      font=ctk.CTkFont(size=11), text_color="gray"
-        ).grid(row=3, column=0, padx=16, pady=(4,2), sticky="w")
+        ).grid(row=5, column=0, padx=16, pady=(4,2), sticky="w")
 
         self.conv_scroll = ctk.CTkScrollableFrame(sb, corner_radius=0, fg_color="transparent")
-        self.conv_scroll.grid(row=4, column=0, sticky="nsew", padx=4)
+        self.conv_scroll.grid(row=6, column=0, sticky="nsew", padx=4)
         self.conv_scroll.grid_columnconfigure(0, weight=1)
-        sb.grid_rowconfigure(4, weight=1)
+        sb.grid_rowconfigure(6, weight=1)
 
         self.skill_indicator = ctk.CTkLabel(
             sb, text="Aucun skill actif",
             font=ctk.CTkFont(size=11), text_color="gray",
             wraplength=180, justify="left"
         )
-        self.skill_indicator.grid(row=5, column=0, padx=12, pady=(4,2), sticky="w")
+        self.skill_indicator.grid(row=7, column=0, padx=12, pady=(4,2), sticky="w")
 
         ctk.CTkButton(sb, text="⚙️  Paramètres", anchor="w", height=32,
                       fg_color="transparent", hover_color=("#e6e3d8","#3a3833"),
                       text_color=("#3d3d3a","#e9e7df"),
                       command=lambda: self._switch_tab("settings"),
-        ).grid(row=6, column=0, padx=10, pady=(0,12), sticky="ew")
+        ).grid(row=8, column=0, padx=10, pady=(0,12), sticky="ew")
 
     def _build_tabbar(self):
         bar = ctk.CTkFrame(self.main, height=44, corner_radius=0,
@@ -353,6 +375,7 @@ class MistralApp(ctk.CTk):
             sys_msg = {"role":"user","content":f"[SKILL: {self.active_skill['name']}]\n{self.active_skill['system']}"}
             sys_ack = {"role":"assistant","content":"Compris, je suis prêt."}
             messages_to_send = [sys_msg, sys_ack] + messages_to_send
+        messages_to_send = self._project_prefix() + messages_to_send
         self.chat_entry.delete(0,"end")
         self.chat_send_btn.configure(state="disabled", text="…")
         # Capturer les références au moment du lancement pour éviter la race condition
@@ -561,6 +584,87 @@ class MistralApp(ctk.CTk):
             self.chat_textbox.configure(state="disabled")
         self._ui(_do)
 
+    def _project_choices(self):
+        return ["Général"] + list_projects() + ["＋ Nouveau projet…"]
+
+    def _conv_dir(self):
+        if not getattr(self, "active_project", None):
+            return CONV_DIR
+        d = PROJECTS_DIR / self.active_project / "conversations"
+        d.mkdir(parents=True, exist_ok=True)
+        return d
+
+    def _project_instructions(self):
+        if not getattr(self, "active_project", None):
+            return ""
+        f = PROJECTS_DIR / self.active_project / "instructions.md"
+        try:
+            return f.read_text(encoding="utf-8").strip() if f.exists() else ""
+        except Exception:
+            return ""
+
+    def _project_prefix(self):
+        instr = self._project_instructions()
+        if not instr:
+            return []
+        return [
+            {"role":"user","content":f"[INSTRUCTIONS DU PROJET « {self.active_project} »]\n{instr}"},
+            {"role":"assistant","content":"Compris, je suivrai ces instructions du projet."},
+        ]
+
+    def _on_project_change(self, value):
+        if value == "＋ Nouveau projet…":
+            self._create_project_dialog()
+            self.project_var.set(self.active_project or "Général")
+            return
+        self.active_project = None if value == "Général" else value
+        self._new_chat()
+        self._refresh_conv_list()
+
+    def _create_project_dialog(self):
+        win = ctk.CTkToplevel(self); win.title("Nouveau projet")
+        win.geometry("480x440"); win.grab_set()
+        win.grid_columnconfigure(0, weight=1)
+        ctk.CTkLabel(win, text="Nom du projet :",
+                     font=ctk.CTkFont(size=12)).grid(row=0, column=0, padx=20, pady=(18,4), sticky="w")
+        e_name = ctk.CTkEntry(win, width=320)
+        e_name.grid(row=1, column=0, padx=20, pady=(0,10), sticky="w")
+        ctk.CTkLabel(win, text="Instructions (relues à chaque conversation du projet) :",
+                     font=ctk.CTkFont(size=12)).grid(row=2, column=0, padx=20, pady=(0,4), sticky="w")
+        e_instr = ctk.CTkTextbox(win, height=230, font=ctk.CTkFont(size=12))
+        e_instr.grid(row=3, column=0, padx=20, pady=(0,12), sticky="ew")
+        def save():
+            name = e_name.get().strip().replace("/", "-")
+            if not name: return
+            d = PROJECTS_DIR / name
+            (d / "conversations").mkdir(parents=True, exist_ok=True)
+            (d / "instructions.md").write_text(e_instr.get("1.0","end").strip(), encoding="utf-8")
+            self.active_project = name
+            self.project_menu.configure(values=self._project_choices())
+            self.project_var.set(name)
+            self._new_chat(); self._refresh_conv_list(); win.destroy()
+        ctk.CTkButton(win, text="Créer le projet", command=save,
+        ).grid(row=4, column=0, padx=20, pady=(0,18), sticky="w")
+
+    def _edit_project_instructions(self):
+        if not getattr(self, "active_project", None):
+            self._create_project_dialog(); return
+        win = ctk.CTkToplevel(self); win.title(f"Instructions — {self.active_project}")
+        win.geometry("540x480"); win.grab_set()
+        win.grid_columnconfigure(0, weight=1); win.grid_rowconfigure(1, weight=1)
+        ctk.CTkLabel(win, text=f"Instructions du projet « {self.active_project} »",
+                     font=ctk.CTkFont(family="Georgia", size=16, weight="bold"),
+        ).grid(row=0, column=0, padx=20, pady=(18,6), sticky="w")
+        box = ctk.CTkTextbox(win, font=ctk.CTkFont(size=12))
+        box.grid(row=1, column=0, padx=20, pady=(0,10), sticky="nsew")
+        box.insert("1.0", self._project_instructions())
+        def save():
+            f = PROJECTS_DIR / self.active_project / "instructions.md"
+            f.parent.mkdir(parents=True, exist_ok=True)
+            f.write_text(box.get("1.0","end").strip(), encoding="utf-8"); win.destroy()
+        ctk.CTkButton(win, text="Enregistrer", command=save,
+        ).grid(row=2, column=0, padx=20, pady=(0,18), sticky="w")
+
     def _new_chat(self):
         self.chat_history = []; self.chat_file = None
         self.chat_textbox.configure(state="normal")
@@ -571,10 +675,10 @@ class MistralApp(ctk.CTk):
 
     def _autosave_work(self):
         if not self.work_history: return
-        CONV_DIR.mkdir(parents=True, exist_ok=True)
+        self._conv_dir().mkdir(parents=True, exist_ok=True)
         title = next((m["content"][:40] for m in self.work_history if m["role"]=="user"), "Sans titre")
         if not hasattr(self, "work_file") or self.work_file is None:
-            self.work_file = CONV_DIR / f"work_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            self.work_file = self._conv_dir() / f"work_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             self.after(0, self._refresh_conv_list)
         sys_prompt = self.work_system.get("1.0","end").strip() if hasattr(self,"work_system") else ""
         self.work_file.write_text(json.dumps({"title":title,"messages":self.work_history,"tab":"travail","files":self.work_files,"system":sys_prompt}, indent=2))
@@ -582,20 +686,20 @@ class MistralApp(ctk.CTk):
 
     def _autosave_code(self):
         if not self.code_chat_history: return
-        CONV_DIR.mkdir(parents=True, exist_ok=True)
+        self._conv_dir().mkdir(parents=True, exist_ok=True)
         title = next((m["content"][:40] for m in self.code_chat_history if m["role"]=="user"), "Sans titre")
         if not hasattr(self, "code_file") or self.code_file is None:
-            self.code_file = CONV_DIR / f"code_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            self.code_file = self._conv_dir() / f"code_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             self.after(0, self._refresh_conv_list)
         self.code_file.write_text(json.dumps({"title":title,"messages":self.code_chat_history,"tab":"code"}, indent=2))
         self.after(0, self._refresh_conv_list)
 
     def _autosave_chat(self):
         if not self.chat_history: return
-        CONV_DIR.mkdir(parents=True, exist_ok=True)
+        self._conv_dir().mkdir(parents=True, exist_ok=True)
         title = next((m["content"][:40] for m in self.chat_history if m["role"]=="user"), "Sans titre")
         if self.chat_file is None:
-            self.chat_file = CONV_DIR / f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+            self.chat_file = self._conv_dir() / f"{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
             self.after(0, self._refresh_conv_list)
         self.chat_file.write_text(json.dumps({"title":title,"messages":self.chat_history,"tab":"chat"}, indent=2))
         self.after(0, self._refresh_conv_list)
@@ -604,7 +708,7 @@ class MistralApp(ctk.CTk):
         for b in self._conv_buttons: b.destroy()
         self._conv_buttons = []
         active_tab = getattr(self, "current_tab", "chat")
-        for path in list_conversations():
+        for path in sorted(self._conv_dir().glob("*.json"), reverse=True):
             try:
                 data  = load_conv(path)
                 tab   = data.get("tab", "chat")
@@ -994,7 +1098,7 @@ class MistralApp(ctk.CTk):
         if self._ssh_connected and self._ssh_host_str:
             ssh_note = f"[SERVEUR SSH ACTIF : {self._ssh_host_str}] Tu as accès à ce serveur via SSH. Suggère des commandes shell si utile."
             context = (context + "\n\n" + ssh_note).strip() if context else ssh_note
-        messages = []
+        messages = list(self._project_prefix())
         if context:
             messages.append({"role":"user","content": f"[CONTEXTE]\n{context}"})
             messages.append({"role":"assistant","content":"Contexte bien reçu. Je suis prêt."})
@@ -1310,7 +1414,7 @@ class MistralApp(ctk.CTk):
             self._ui(_do)
         try:
             client = Mistral(api_key=self._get_api_key())
-            stream = client.chat.stream(model=model, messages=system + history)
+            stream = client.chat.stream(model=model, messages=self._project_prefix() + system + history)
             append("Mistral : ")
             full = ""
             for chunk in stream:
